@@ -1,11 +1,11 @@
-import React, { useState, useEffect,useMemo,useRef } from 'react';
+import React, { useState, useEffect,useMemo,useCallback } from 'react';
 import DataTable from 'react-data-table-component';
 
 // import FilterComponent from 'react-data-table-component';
 import requests from '../requests';
 import axiosInstance from '../axios';
+import Form from './Form';
 
-const lodash = require("lodash");
 const columns = [
     {
         name: 'User ID',
@@ -27,15 +27,16 @@ const columns = [
     },
 ];
 
+  
 
 const Table = () => {
     const fetchUrl = requests.fetchTodo
-    const inputEl = useRef(null);
 
 	const [resetPaginationToggle, setResetPaginationToggle] = useState(false);
-    const [todo, setTodo] = useState([]);
-	const [selectedRows, setSelectedRows] = React.useState([]);
-	const [toggleCleared, setToggleCleared] = React.useState(false);
+  const [todo, setTodo] = useState([]);
+
+	const [selectedRows, setSelectedRows] = useState([]);
+	const [toggleCleared, setToggleCleared] = useState(false);
     useEffect(() => {
         async function fetchData() {
           const request = await axiosInstance.get(fetchUrl);
@@ -47,17 +48,21 @@ const Table = () => {
     
     const [filterText, setFilterText] = useState('');
     const filteredItems = todo.filter(item => item.title && item.title.toLowerCase().includes(filterText.toLowerCase()));
-    console.log(todo)
-	const handleRowSelected = React.useCallback(state => {
+	const handleRowSelected = useCallback(state => {
 		setSelectedRows(state.selectedRows);
 	}, []);
 
-	const contextActions = React.useMemo(() => {
+	const contextActions = useMemo(() => {
 		const handleDelete = () => {
 			
-			if (window.confirm(`Are you sure you want to delete:\r ${selectedRows.map(r => r.id)}?`)) {
+			if (
+                window.confirm(`Are you sure you want to delete:\r ${selectedRows.map(r => r.id)}?`)
+                )
+                 {
 				setToggleCleared(!toggleCleared);
-				setTodo(lodash.differenceBy(filteredItems, selectedRows, 'ID'));
+                let newArray = [];
+                selectedRows.map(r => newArray.push(r.id))
+				setTodo(todo.filter(item=> !newArray.includes(item.id)));
 			}
 		};
 
@@ -66,41 +71,21 @@ const Table = () => {
 				Delete
 			</button>
 		);
-	}, [filteredItems, selectedRows, toggleCleared]);
+	}, [todo, selectedRows, toggleCleared]);
 
-    const subHeaderComponentMemo = useMemo(() => {
-        const filterTextChange = (e) =>{
-            setFilterText(e.target.value)
-            inputEl.current.focus();
-        }
-        const FilterComponent = ({ filterText, onClear }) => (
-            <div>
-                <input
-                    id='search-input'
-                    ref={inputEl}
-                    type="text"
-                    value={filterText}
-                    onChange={filterTextChange}
-                    
-                />
-                <button type="button" onClick={onClear}>
-                    X
-                </button>
-            </div>
-        );
+    const subHeaderComponentMemo = () => {
         const handleClear = () => {
             if (filterText) {
                 setResetPaginationToggle(!resetPaginationToggle);
-            setFilterText('');
-        }
-    };
-    
-    return (
-        <FilterComponent onClear={handleClear} filterText={filterText} />
-        );
-    }, [filterText, resetPaginationToggle]);
-    return (
+                setFilterText('');
+            }
+        };
+        return <FilterComponent onFilter={e => setFilterText(e.target.value)} onClear={handleClear} filterText={filterText} />
         
+    };
+    return (
+        <>
+        <Form alltodo={todo} addTodo={setTodo} />
         <DataTable
         title="Table List"
         columns={columns}
@@ -114,8 +99,23 @@ const Table = () => {
         onSelectedRowsChange={handleRowSelected}
         clearSelectedRows={toggleCleared}
         persistTableHead
-    />
+        />
+        </>
 )
 }
+
+const FilterComponent = ({ filterText, onClear,onFilter }) => (
+    <div>
+        <input
+            type="text"
+            value={filterText}
+            onChange={onFilter}
+            
+        />
+        <button type="button" onClick={onClear}>
+            X
+        </button>
+    </div>
+);
 
 export default Table
